@@ -6,7 +6,72 @@ on:
   workflow_dispatch:
 
 jobs:
-  probe:
-    runs-on: ubuntu-latest
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 90
     steps:
-      - run: echo ready
+      - uses: actions/checkout@v4
+
+      - name: Fetch samples
+        run: |
+          mkdir -p samples
+          base=https://oramics.github.io/sampled/DM/TR-909/Detroit/samples
+          curl -fsSL -o samples/bd.wav "$base/kick.wav"
+          curl -fsSL -o samples/sd.wav "$base/snare.wav"
+          curl -fsSL -o samples/lt.wav "$base/tom-l.wav"
+          curl -fsSL -o samples/ht.wav "$base/tom-h.wav"
+          curl -fsSL -o samples/rs.wav "$base/rim.wav"
+          curl -fsSL -o samples/cp.wav "$base/clap-1.wav"
+          curl -fsSL -o samples/ch.wav "$base/hihat-closed.wav"
+          curl -fsSL -o samples/oh.wav "$base/hihat-open-1.wav"
+          curl -fsSL -o samples/cr.wav "$base/cymbal.wav"
+          curl -fsSL -o samples/rd.wav "$base/ride.wav"
+          python3 scripts/pitch_mt.py
+          ls -l samples
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 3
+
+      - name: Sign and package
+        run: |
+          set -e
+          VST=$(find build -name "TR-909.vst3" -type d | head -1)
+          AU=$(find build -name "TR-909.component" -type d | head -1)
+          echo "VST=$VST"
+          echo "AU=$AU"
+          test -d "$VST"
+          test -d "$AU"
+          codesign --force --deep --sign - "$VST"
+          codesign --force --deep --sign - "$AU"
+          file "$VST/Contents/MacOS/"* || true
+          rm -rf dist
+          mkdir -p dist
+          cp -R "$VST" "$AU" dist/
+          cat > dist/INSTALL.txt << 'EOF'
+TR-909 Rhythm Composer for Ableton Live
+Apple silicon (M1/M2/M3/M4). VST3 and Audio Unit.
+
+Install:
+  1. Quit Live.
+  2. Copy TR-909.vst3 into ~/Library/Audio/Plug-Ins/VST3
+  3. Copy TR-909.component into ~/Library/Audio/Plug-Ins/Components
+  4. If macOS says the plugin is damaged, open Terminal and run:
+       xattr -cr ~/Library/Audio/Plug-Ins/VST3/TR-909.vst3
+       xattr -cr ~/Library/Audio/Plug-Ins/Components/TR-909.component
+  5. Open Live, Preferences, Plug-Ins, rescan.
+  6. Put TR-909 on a MIDI track. Pick VST3 or Audio Units.
+     The window floats like any other instrument.
+
+Press Play in Live. It follows Live's tempo. Click a pad to cycle off, hit, accent.
+EOF
+          ditto -c -k --sequesterRsrc dist TR-909-Ableton.zip
+          ls -lh TR-909-Ableton.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TR-909-Ableton
+          path: TR-909-Ableton.zip
+          if-no-files-found: error
