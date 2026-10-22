@@ -1,0 +1,17 @@
+TR-909 Rhythm Composer for Ableton Live
+Apple silicon (M1, M2, M3, M4). This is a real VST3 and Audio Unit, not a Max device.
+
+Install:
+  1. Quit Live.
+  2. Copy TR-909.vst3 into ~/Library/Audio/Plug-Ins/VST3
+     Create that folder if it is missing.
+  3. Copy TR-909.component into ~/Library/Audio/Plug-Ins/Components
+  4. If macOS says the plugin is damaged, open Terminal and run:
+       xattr -cr ~/Library/Audio/Plug-Ins/VST3/TR-909.vst3
+       xattr -cr ~/Library/Audio/Plug-Ins/Components/TR-909.component
+  5. Open Live. Preferences, Plug-Ins, rescan.
+  6. On a MIDI track choose TR-909 under VST3 or Audio Units.
+     The window floats over the arrangement like any other instrument.
+
+Press Play in Live. It follows Live's tempo.
+Click a pad to cycle off, hit, accent.
